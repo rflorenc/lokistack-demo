@@ -1,4 +1,4 @@
-# Installs baseline LokiStack for demo purposes
+# Baseline LokiStack for demo purposes
 
 ## Prerequisites
 
