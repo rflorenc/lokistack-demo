@@ -1,0 +1,55 @@
+- name: Install Elasticsearch Operator
+  block:
+    - name: Ensure Elasticsearch ns is {{ state }}
+      k8s:
+        state: "{{ state }}"
+        definition: "{{ lookup('template', 'elasticsearch-operator/es-ns.yaml') | from_yaml }}"
+
+    - name: Ensure Elasticsearch Operator resources are {{ state }}
+      k8s:
+        state: "{{ state }}"
+        definition: "{{ lookup('template', 'elasticsearch-operator/{{ item }}') | from_yaml }}"
+      loop:
+        - es-og.yaml
+        - es-sub.yaml
+
+    - name: Wait for Elasticsearch csv Succeeded
+      k8s_info:
+        api_version: operators.coreos.com/v1alpha1
+        kind: ClusterServiceVersion
+        name: elasticsearch-operator.5.5.2
+        namespace: openshift-operators-redhat
+      register: reg_loki_es
+      until: reg_loki_es|json_query('resources[*].status.phase')|unique == ["Succeeded"]
+
+- name: Install ClusterLogging operator
+  block:
+    - name: Ensure ClusterLogging ns is {{ state }}
+      k8s:
+        state: "{{ state }}"
+        definition: "{{ lookup('template', 'clusterlogging-operator/cl-ns.yaml') | from_yaml }}"
+
+    - name: Ensure OpenShift Logging Operator resources are {{ state }}
+      k8s:
+        state: "{{ state }}"
+        definition: "{{ lookup('template', 'clusterlogging-operator/{{ item }}') | from_yaml }}"
+      loop:
+        - cl-og.yaml
+        - cl-sub.yaml
+
+    - name: Wait for OpenShift Logging csv Succeeded
+      k8s_info:
+        api_version: operators.coreos.com/v1alpha1
+        kind: ClusterServiceVersion
+        name: cluster-logging.5.5.2
+        namespace: openshift-logging
+      register: reg_loki_cl
+      ignore_errors: yes
+
+    - name: Ensure ClusterLogging Operator instances are {{ state }}
+      k8s:
+        state: "{{ state }}"
+        definition: "{{ lookup('template', 'clusterlogging-operator/{{ item }}') | from_yaml }}"
+      loop:
+        - cl.yaml
+        - cl-consoleplugin.yaml

@@ -1,0 +1,12 @@
+---
+  - import_tasks: odf.yaml
+    tags:
+      - odf
+
+  - import_tasks: loki.yaml
+    tags:
+    - lokistack
+
+  - import_tasks: clusterlogging.yaml
+    tags:
+    - lokistack

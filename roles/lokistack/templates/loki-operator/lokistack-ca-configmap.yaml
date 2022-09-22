@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: lokistack-odf-ca
+  namespace: openshift-logging
+  annotations:
+    service.beta.openshift.io/inject-cabundle: "true"

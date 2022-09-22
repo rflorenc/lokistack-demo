@@ -1,0 +1,42 @@
+- name: Install ODF minimal
+  block:
+    - name: Ensure odf ns is {{ state }}
+      k8s:
+        state: "{{ state }}"
+        definition: "{{ lookup('template', 'odf-operator/odf-ns.yaml') | from_yaml }}"
+
+    - name: Ensure odf operator resources are {{ state }}
+      k8s:
+        state: "{{ state }}"
+        definition: "{{ lookup('template', 'odf-operator/{{ item }}') | from_yaml }}"
+      loop:
+        - odf-og.yaml
+        - odf-subs.yaml
+        - odf-storagesystem.yaml
+        - odf-storagecluster.yaml
+        - odf-consoleplugin.yaml
+
+    - name: Get StorageCluster info
+      k8s_info:
+        api_version: v1
+        kind: StorageCluster
+        namespace: openshift-storage
+        name: ocs-storagecluster
+      register: reg_storagecluster
+      until: reg_storagecluster|json_query('resources[*].status.phase')|unique == ["Ready"]
+
+- name: Configure OBC and Lokistack resources
+  block:
+    - name: Create ObjectBucketClaim
+      k8s:
+        state: "{{ state }}"
+        definition: "{{ lookup('template', 'odf-operator/odf-obc.yaml') | from_yaml }}"
+
+    - name: Get ObjectBucketClaim info
+      k8s_info:
+        api_version: objectbucket.io/v1alpha1
+        kind: ObjectBucketClaim
+        namespace: openshift-storage
+        name: logging-loki-s3
+      register: reg_obc
+      until: reg_obc|json_query('resources[*].status.phase')|unique == ["Bound"]

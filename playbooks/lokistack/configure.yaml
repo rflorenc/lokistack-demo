@@ -1,0 +1,14 @@
+---
+- hosts: localhost
+  gather_facts: false
+
+  vars:
+    # if needed, these vars override individual role defaults.
+    # i.e.: roles/$role-name/defaults/main.yaml
+    # they can also be overriden via ansible-playbook --extra-vars
+    sc: ""
+    is_dev: true
+    state: present
+
+  roles:
+    - { role: lokistack, when: is_dev|bool}

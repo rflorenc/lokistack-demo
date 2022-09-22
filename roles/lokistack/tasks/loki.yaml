@@ -1,0 +1,69 @@
+- name: Install Loki Operator
+  block:
+    - name: Ensure Loki Operator resources are {{ state }}
+      k8s:
+        state: "{{ state }}"
+        definition: "{{ lookup('template', 'loki-operator/{{ item }}') | from_yaml }}"
+      loop:
+        - loki-operator-og.yaml
+        - loki-operator-sub.yaml
+
+    - name: Wait for Loki csv Succeeded
+      k8s_info:
+        api_version: operators.coreos.com/v1alpha1
+        kind: ClusterServiceVersion
+        name: loki-operator.5.5.2
+        namespace: openshift-operators-redhat
+      register: reg_loki_csv
+      until: reg_loki_csv|json_query('resources[*].status.phase')|unique == ["Succeeded"]
+
+- name: Set Lokistack - OBC configuration facts
+  block:
+    - name: Get Secret info
+      k8s_info:
+        api_version: v1
+        kind: Secret
+        namespace: openshift-storage
+        name: logging-loki-s3
+      register: reg_secret
+
+    - name: Set aws_access_key_id fact
+      set_fact:
+        aws_access_key_id_b64: "{{ reg_secret.resources[0].data['AWS_ACCESS_KEY_ID'] | b64encode }}"
+
+    - name: Set aws_secret_access_key fact
+      set_fact:
+        aws_secret_access_key_b64: "{{ reg_secret.resources[0].data['AWS_SECRET_ACCESS_KEY'] | b64encode }}"
+
+    - name: Get Configmap info
+      k8s_info:
+        api_version: v1
+        kind: ConfigMap
+        namespace: openshift-storage
+        name: logging-loki-s3
+      register: reg_cm
+
+    - name: Set obc bucket name fact
+      set_fact:
+        bucketnames_b64: "{{ reg_cm.resources[0].data['BUCKET_NAME'] | b64encode }}"
+
+    - name: Set temp obc bucket endpoint fact
+      set_fact:
+        endpoint: "https://{{ reg_cm.resources[0].data['BUCKET_HOST'] }}"
+
+    - name: Set obc bucket endpoint fact
+      set_fact:
+        endpoint_b64: "{{ endpoint | b64encode }}"
+
+
+- name: Install Loki Stack resources
+  block:
+    - name: Ensure Loki Stack resources are {{ state }}
+      k8s:
+        state: "{{ state }}"
+        definition: "{{ lookup('template', 'loki-operator/{{ item }}') | from_yaml }}"
+      loop:
+        - lokistack-s3-secret.yaml
+        - lokistack-ca-configmap.yaml
+        - lokistack.yaml
+
